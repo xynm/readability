@@ -4,9 +4,8 @@ var sinon = require("sinon");
 chai.config.includeStack = true;
 var expect = chai.expect;
 
-var readability = require("../index");
-var Readability = readability.Readability;
-var JSDOMParser = readability.JSDOMParser;
+var Readability = require("../index").Readability;
+var JSDOMParser = require("../JSDOMParser");
 
 var testPages = require("./utils").getTestPages();
 
@@ -36,7 +35,8 @@ function inOrderIgnoreEmptyTextNodes(fromNode) {
 function traverseDOM(callback, expectedDOM, actualDOM) {
   var actualNode = actualDOM.documentElement || actualDOM.childNodes[0];
   var expectedNode = expectedDOM.documentElement || expectedDOM.childNodes[0];
-  while (actualNode) {
+  while (actualNode || expectedNode) {
+    // We'll stop if we don't have both actualNode and expectedNode
     if (!callback(actualNode, expectedNode)) {
       break;
     }
@@ -74,6 +74,9 @@ function runTestsWithItems(label, domGenerationFn, source, expectedContent, expe
 
     it("should extract expected content", function() {
       function nodeStr(n) {
+        if (!n) {
+          return "(no node)";
+        }
         if (n.nodeType == 3) {
           return "#text(" + htmlTransform(n.textContent) + ")";
         }
@@ -113,10 +116,10 @@ function runTestsWithItems(label, domGenerationFn, source, expectedContent, expe
         }).join(",");
       }
 
+
       var actualDOM = domGenerationFn(result.content);
       var expectedDOM = domGenerationFn(expectedContent);
       traverseDOM(function(actualNode, expectedNode) {
-        expect(!!actualNode).eql(!!expectedNode);
         if (actualNode && expectedNode) {
           var actualDesc = nodeStr(actualNode);
           var expectedDesc = nodeStr(expectedNode);
@@ -146,6 +149,7 @@ function runTestsWithItems(label, domGenerationFn, source, expectedContent, expe
             }
           }
         } else {
+          expect(nodeStr(actualNode), "Should have a node from both DOMs").eql(nodeStr(expectedNode));
           return false;
         }
         return true;
@@ -153,23 +157,23 @@ function runTestsWithItems(label, domGenerationFn, source, expectedContent, expe
     });
 
     it("should extract expected title", function() {
-      expect(expectedMetadata.title).eql(result.title);
+      expect(result.title).eql(expectedMetadata.title);
     });
 
     it("should extract expected byline", function() {
-      expect(expectedMetadata.byline).eql(result.byline);
+      expect(result.byline).eql(expectedMetadata.byline);
     });
 
     it("should extract expected excerpt", function() {
-      expect(expectedMetadata.excerpt).eql(result.excerpt);
+      expect(result.excerpt).eql(expectedMetadata.excerpt);
     });
 
     it("should extract expected site name", function() {
-      expect(expectedMetadata.siteName).eql(result.siteName);
+      expect(result.siteName).eql(expectedMetadata.siteName);
     });
 
     expectedMetadata.dir && it("should extract expected direction", function() {
-      expect(expectedMetadata.dir).eql(result.dir);
+      expect(result.dir).eql(expectedMetadata.dir);
     });
   });
 }
@@ -253,6 +257,17 @@ describe("Readability API", function() {
       expect(parser._cleanClasses.called).eql(false);
     });
 
+    it("should use custom content serializer sent as option", function() {
+      var dom = new JSDOM("My cat: <img src=''>");
+      var expected_xhtml = "<div xmlns=\"http://www.w3.org/1999/xhtml\" id=\"readability-page-1\" class=\"page\">My cat: <img src=\"\" /></div>";
+      var xml = new dom.window.XMLSerializer();
+      var content = new Readability(dom.window.document, {
+        serializer: function(el) {
+          return xml.serializeToString(el.firstChild);
+        }
+      }).parse().content;
+      expect(content).eql(expected_xhtml);
+    });
   });
 });
 

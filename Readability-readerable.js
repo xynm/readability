@@ -1,5 +1,4 @@
 /* eslint-env es6:false */
-/* globals exports */
 /*
  * Copyright (c) 2010 Arc90 Inc
  *
@@ -29,9 +28,11 @@ var REGEXPS = {
 };
 
 function isNodeVisible(node) {
-  // Have to null-check node.style to deal with SVG and MathML nodes.
-  return (!node.style || node.style.display != "none") && !node.hasAttribute("hidden")
-    && (!node.hasAttribute("aria-hidden") || node.getAttribute("aria-hidden") != "true");
+  // Have to null-check node.style and node.className.indexOf to deal with SVG and MathML nodes.
+  return (!node.style || node.style.display != "none")
+    && !node.hasAttribute("hidden")
+    //check for "fallback-image" so that wikimedia math images are displayed
+    && (!node.hasAttribute("aria-hidden") || node.getAttribute("aria-hidden") != "true" || (node.className && node.className.indexOf && node.className.indexOf("fallback-image") !== -1));
 }
 
 /**
@@ -93,6 +94,6 @@ function isProbablyReaderable(doc, isVisible) {
   });
 }
 
-if (typeof exports === "object") {
-  exports.isProbablyReaderable = isProbablyReaderable;
+if (typeof module === "object") {
+  module.exports = isProbablyReaderable;
 }
